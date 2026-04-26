@@ -1,0 +1,66 @@
+---
+- name: Install CrowdStrike on Windows
+  hosts: all
+  gather_facts: true
+  vars_files:
+    - vars/crowdstrike.yaml
+
+  pre_tasks:
+
+    - name: Validate CrowdStrike CID is provided
+      ansible.builtin.assert:
+        that:
+          - crowdstrike_cid is defined
+          - crowdstrike_cid | trim | length > 0
+        fail_msg: "crowdstrike_cid must be provided by AAP credential unless crowdstrike_local_mode is true."
+      when: not crowdstrike_local_mode
+      no_log: true
+
+  tasks:
+
+    - name: Check whether CrowdStrike is already installed
+      ansible.windows.win_shell: |
+        $products = Get-ItemProperty `
+          HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, `
+          HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* `
+          -ErrorAction SilentlyContinue |
+          Where-Object {
+            $_.DisplayName -match 'CrowdStrike'
+          }
+
+        if ($products) {
+          "installed"
+        } else {
+          "missing"
+        }
+      register: crowdstrike_windows_check
+      changed_when: false
+
+    - name: Stop play if CrowdStrike already installed
+      ansible.builtin.meta: end_play
+      when: crowdstrike_windows_check.stdout | trim == "installed"
+
+    - name: Ensure Windows install directory exists
+      ansible.windows.win_file:
+        path: "{{ crowdstrike_windows_install_path }}"
+        state: directory
+
+    - name: Set installer path
+      ansible.builtin.set_fact:
+        os_package_local_path: "{{ crowdstrike_windows_install_path }}\\{{ crowdstrike_windows_installer }}"
+
+    - name: Download CrowdStrike Windows installer
+      ansible.windows.win_get_url:
+        url: "{{ crowdstrike_package_url }}{{ crowdstrike_windows_installer }}"
+        dest: "{{ os_package_local_path }}"
+
+    - name: Install CrowdStrike Windows Sensor
+      ansible.windows.win_package:
+        path: "{{ os_package_local_path }}"
+        arguments: "/install /quiet /norestart CID={{ crowdstrike_cid }}"
+        state: present
+        expected_return_code:
+          - 0
+          - 3010
+      when: not crowdstrike_local_mode
+      no_log: true

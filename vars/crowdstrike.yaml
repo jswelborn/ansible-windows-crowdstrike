@@ -1,0 +1,6 @@
+---
+crowdstrike_package_url: "https://hts.jfrog.io/artifactory/hts-packages/"
+os_package_name: "crowdstrike"
+crowdstrike_local_mode: false
+crowdstrike_windows_install_path: "C:\\Temp"
+crowdstrike_windows_installer: "WindowsSensor.MaverickGyr.exe"
