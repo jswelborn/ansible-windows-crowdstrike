@@ -75,5 +75,29 @@
         expected_return_code:
           - 0
           - 3010
+      async: 1200
+      poll: 0
+      register: crowdstrike_install
       when: not crowdstrike_local_mode
-      no_log: false
+      no_log: true
+
+    - name: Wait for CrowdStrike install to finish
+      ansible.builtin.async_status:
+        jid: "{{ crowdstrike_install.ansible_job_id }}"
+      register: crowdstrike_install_result
+      until: crowdstrike_install_result.finished
+      retries: 60
+      delay: 10
+      when: not crowdstrike_local_mode
+      no_log: true
+
+    - name: Reset WinRM connection after CrowdStrike install
+      ansible.builtin.meta: reset_connection
+
+    - name: Wait for WinRM after CrowdStrike install
+      ansible.windows.win_ping:
+      register: crowdstrike_winrm_ready
+      retries: 12
+      delay: 10
+      until: crowdstrike_winrm_ready is succeeded
+      changed_when: false
