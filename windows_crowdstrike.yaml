@@ -76,4 +76,4 @@
           - 0
           - 3010
       when: not crowdstrike_local_mode
-      no_log: true
+      no_log: false
