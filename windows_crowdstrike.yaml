@@ -85,7 +85,7 @@
       ansible.builtin.async_status:
         jid: "{{ crowdstrike_install.ansible_job_id }}"
       register: crowdstrike_install_result
-      until: crowdstrike_install_result.finished
+      until: crowdstrike_install_result.finished | bool
       retries: 60
       delay: 10
       when: not crowdstrike_local_mode
