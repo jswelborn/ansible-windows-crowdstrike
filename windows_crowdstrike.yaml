@@ -91,13 +91,14 @@
       when: not crowdstrike_local_mode
       no_log: true
 
+    - name: Allow Windows services to settle after CrowdStrike install
+      ansible.builtin.pause:
+        seconds: 60
+
     - name: Reset WinRM connection after CrowdStrike install
       ansible.builtin.meta: reset_connection
 
     - name: Wait for WinRM after CrowdStrike install
-      ansible.windows.win_ping:
-      register: crowdstrike_winrm_ready
-      retries: 12
-      delay: 10
-      until: crowdstrike_winrm_ready is succeeded
-      changed_when: false
+      ansible.builtin.wait_for_connection:
+        delay: 15
+        timeout: 300
