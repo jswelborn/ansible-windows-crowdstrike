@@ -1,0 +1,25 @@
+---
+- name: Check Windows CrowdStrike Falcon service
+  hosts: all
+  gather_facts: false
+
+  vars:
+    service_name: CSFalconService
+
+  tasks:
+    - name: Gather CrowdStrike Falcon service info
+      ansible.windows.win_service_info:
+        name: "{{ service_name }}"
+      register: service_info
+
+    - name: Fail if CrowdStrike Falcon service is missing
+      ansible.builtin.fail:
+        msg: "CrowdStrike Falcon service is missing"
+      when: not service_info.exists
+
+    - name: Fail if CrowdStrike Falcon service is not running
+      ansible.builtin.fail:
+        msg: "CrowdStrike Falcon service exists but is not running"
+      when:
+        - service_info.exists
+        - service_info.services[0].state != "started"
