@@ -1,5 +1,5 @@
 ---
-- name: Check Windows CrowdStrike Falcon service
+- name: Check and remediate Windows CrowdStrike Falcon service
   hosts: all
   gather_facts: false
 
@@ -10,16 +10,40 @@
     - name: Gather CrowdStrike Falcon service info
       ansible.windows.win_service_info:
         name: "{{ service_name }}"
-      register: service_info
+      register: crowdstrike_service_info
+      ignore_unreachable: true
+
+    - name: End compliance check for unreachable host
+      ansible.builtin.meta: end_host
+      when: crowdstrike_service_info is ansible.builtin.unreachable
 
     - name: Fail if CrowdStrike Falcon service is missing
       ansible.builtin.fail:
         msg: "CrowdStrike Falcon service is missing"
-      when: not service_info.exists
+      when: not crowdstrike_service_info.exists
 
-    - name: Fail if CrowdStrike Falcon service is not running
-      ansible.builtin.fail:
-        msg: "CrowdStrike Falcon service exists but is not running"
+    - name: Start CrowdStrike Falcon service when it is stopped
+      ansible.windows.win_service:
+        name: "{{ service_name }}"
+        state: started
+        start_mode: auto
       when:
-        - service_info.exists
-        - service_info.services[0].state != "started"
+        - crowdstrike_service_info.exists
+        - crowdstrike_service_info.services[0].state != "started"
+
+    - name: Refresh CrowdStrike Falcon service info after remediation
+      ansible.windows.win_service_info:
+        name: "{{ service_name }}"
+      register: crowdstrike_remediation_info
+      ignore_unreachable: true
+
+    - name: End compliance check if host became unreachable
+      ansible.builtin.meta: end_host
+      when: crowdstrike_remediation_info is ansible.builtin.unreachable
+
+    - name: Fail if CrowdStrike Falcon service is still not running
+      ansible.builtin.fail:
+        msg: "CrowdStrike Falcon service exists but could not be started"
+      when:
+        - crowdstrike_remediation_info.exists
+        - crowdstrike_remediation_info.services[0].state != "started"
